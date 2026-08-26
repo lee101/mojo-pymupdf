@@ -222,6 +222,20 @@ class Run:
     def bbox(self) -> tuple[float, float, float, float]:
         return union_boxes(char.bbox for char in self.chars)
 
+    @cached_property
+    def dict_base(self) -> dict[str, Any]:
+        return {
+            "size": self.size,
+            "flags": self.font.flags,
+            "bidi": 0,
+            "char_flags": 16,
+            "font": self.font.name,
+            "color": 0,
+            "alpha": 255,
+            "ascender": self.font.ascender,
+            "descender": self.font.descender,
+        }
+
 
 def union_boxes(boxes: Iterable[tuple[float, float, float, float]]) -> tuple[float, float, float, float]:
     iterator = iter(boxes)
@@ -584,17 +598,7 @@ class TextPage:
             for line_runs in block_runs:
                 spans = []
                 for run in line_runs:
-                    span: dict[str, Any] = {
-                        "size": run.size,
-                        "flags": run.font.flags,
-                        "bidi": 0,
-                        "char_flags": 16,
-                        "font": run.font.name,
-                        "color": 0,
-                        "alpha": 255,
-                        "ascender": run.font.ascender,
-                        "descender": run.font.descender,
-                    }
+                    span = run.dict_base.copy()
                     if raw:
                         span["chars"] = [
                             {"origin": char.origin, "bbox": char.bbox, "c": char.c, "synthetic": False}

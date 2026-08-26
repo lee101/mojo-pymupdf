@@ -111,7 +111,10 @@ def expected_geometry(positions, advances, matrix, low, high, rise, page_height)
     )
 
 
-@pytest.mark.parametrize("count", [0, 11, _lib.LAYOUT_PARALLEL_THRESHOLD + 7])
+@pytest.mark.parametrize(
+    "count",
+    [0, 11, _lib.LAYOUT_PARALLEL_THRESHOLD - 1, _lib.LAYOUT_PARALLEL_THRESHOLD + 7],
+)
 def test_simd_glyph_layout_tail_and_parallel_threshold(count):
     advances = np.linspace(0.25, 1.75, count, dtype=np.float64)
     positions = np.empty(count, dtype=np.float64)
@@ -244,6 +247,15 @@ def test_cached_parse_and_words_do_not_share_mutable_results(reference_pdf):
     count = len(words)
     words.clear()
     assert len(second[0].get_text("words")) == count
+
+
+def test_rawdict_results_do_not_share_mutable_containers(reference_pdf):
+    page = mupdf.open(stream=reference_pdf[0])[0]
+    first = page.get_text("rawdict")
+    expected = page.get_text("rawdict")
+    first["blocks"][0]["lines"][0]["spans"][0]["chars"][0]["c"] = "changed"
+    first["blocks"].clear()
+    assert page.get_text("rawdict") == expected
 
 
 def test_clip_matches_upstream_for_whole_line(reference_pdf):

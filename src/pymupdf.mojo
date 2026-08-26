@@ -1,10 +1,14 @@
 """Hot loops for PDF content stream tokenization and string decoding."""
 
+from max.algorithm import parallelize
+from std.runtime import initialize_runtime
 from std.sys import simd_width_of as simdwidthof
 
 comptime BPtr = Pointer[UInt8, AnyOrigin[mut=True]]
 comptime IPtr = Pointer[Int64, AnyOrigin[mut=True]]
 comptime FPtr = Pointer[Float64, AnyOrigin[mut=True]]
+comptime LAYOUT_PARALLEL_THRESHOLD = 262_144
+comptime LAYOUT_GRAIN = 32_768
 
 
 def is_white(c: UInt8) -> Bool:
@@ -359,22 +363,67 @@ def mpdf_layout_glyphs(
     var positions = FPtr(unsafe_from_address=positions_addr)
     var advances = FPtr(unsafe_from_address=advances_addr)
     var geometry = FPtr(unsafe_from_address=geometry_addr)
-    layout_range(
-        positions,
-        advances,
-        geometry,
-        n,
-        0,
-        n,
-        a,
-        b,
-        c,
-        d,
-        e,
-        f,
-        low,
-        high,
-        rise,
-        page_height,
-    )
+    if n >= LAYOUT_PARALLEL_THRESHOLD:
+        initialize_runtime()
+        var tasks = (n + LAYOUT_GRAIN - 1) // LAYOUT_GRAIN
+
+        @__copy_capture(
+            positions,
+            advances,
+            geometry,
+            n,
+            a,
+            b,
+            c,
+            d,
+            e,
+            f,
+            low,
+            high,
+            rise,
+            page_height,
+        )
+        @__parameter
+        def work(task: Int):
+            var start = task * LAYOUT_GRAIN
+            var end = min(start + LAYOUT_GRAIN, n)
+            layout_range(
+                positions,
+                advances,
+                geometry,
+                n,
+                start,
+                end,
+                a,
+                b,
+                c,
+                d,
+                e,
+                f,
+                low,
+                high,
+                rise,
+                page_height,
+            )
+
+        parallelize[work](tasks, tasks)
+    else:
+        layout_range(
+            positions,
+            advances,
+            geometry,
+            n,
+            0,
+            n,
+            a,
+            b,
+            c,
+            d,
+            e,
+            f,
+            low,
+            high,
+            rise,
+            page_height,
+        )
     return 0

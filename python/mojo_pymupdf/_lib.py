@@ -16,8 +16,6 @@ D = ctypes.c_double
 LAYOUT_PARALLEL_THRESHOLD = 262_144
 
 _handle: ctypes.CDLL | None = None
-_runtime_handle: ctypes.CDLL | None = None
-_cpu_device: int | None = None
 
 
 def build(force: bool = False) -> str:
@@ -51,18 +49,6 @@ def lib() -> ctypes.CDLL:
         _handle.mpdf_layout_glyphs.argtypes = [I, I, I, I] + [D] * 10
         _handle.mpdf_layout_glyphs.restype = I
     return _handle
-
-
-def _ensure_cpu_parallel_runtime() -> None:
-    global _runtime_handle, _cpu_device
-    if _cpu_device is None:
-        lib()
-        _runtime_handle = ctypes.CDLL("libKGENCompilerRTShared.so")
-        create = _runtime_handle.KGEN_CompilerRT_AsyncRT_GetOrCreateCPUDevice
-        create.restype = ctypes.c_void_p
-        _cpu_device = create()
-        if not _cpu_device:
-            raise RuntimeError("failed to initialize Mojo CPU runtime")
 
 
 def lex(data: bytes) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -137,8 +123,6 @@ def layout_glyphs(
     geometry = np.empty((6, len(positions)), dtype=np.float64)
     if not len(positions):
         return geometry
-    if len(positions) >= LAYOUT_PARALLEL_THRESHOLD:
-        _ensure_cpu_parallel_runtime()
     status = lib().mpdf_layout_glyphs(
         positions.ctypes.data,
         advances.ctypes.data,

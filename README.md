@@ -83,11 +83,11 @@ Measured with `pixi run bench` on an Intel Xeon E5-2697 v4 at 2.30 GHz, Linux
 
 | case | mojo-pymupdf | reference | ratio | reference implementation |
 | --- | ---: | ---: | ---: | --- |
-| open 60-page PDF | 0.00 ms | 0.31 ms | 77.84x faster | PyMuPDF |
-| text, 60 pages / 1,800 lines | 0.06 ms | 76.80 ms | 1210.61x faster | PyMuPDF |
-| words, one page / 2,000 lines | 0.13 ms | 76.24 ms | 577.90x faster | PyMuPDF |
-| rawdict, one page / 2,000 lines | 40.41 ms | 176.86 ms | 4.38x faster | PyMuPDF |
-| content lex, 2.9 MB | 10.13 ms | 723.24 ms | 71.41x faster | pure Python |
+| open 60-page PDF | 0.00 ms | 0.34 ms | 76.62x faster | PyMuPDF |
+| text, 60 pages / 1,800 lines | 0.06 ms | 77.68 ms | 1250.46x faster | PyMuPDF |
+| words, one page / 2,000 lines | 0.14 ms | 80.13 ms | 581.25x faster | PyMuPDF |
+| rawdict, one page / 2,000 lines | 39.88 ms | 181.57 ms | 4.55x faster | PyMuPDF |
+| content lex, 2.9 MB | 10.63 ms | 785.28 ms | 73.91x faster | pure Python |
 
 The harness repeats calls on the same immutable documents and reports the best time, so
 the open and extraction rows measure warm-cache latency after the first parse or page
@@ -103,7 +103,10 @@ call; only their addresses cross the ABI. The Mojo entry points validate signed 
 and non-null addresses before constructing pointers. Large glyph spans use Mojo CPU
 parallelism.
 
-No GPU path is included.
+No GPU path is included. Glyph geometry is memory-bound at well below two floating-point
+operations per byte moved, and the remaining raw-dictionary cost is Python object
+allocation, so neither hot path has enough arithmetic intensity to justify GPU transfer
+and launch overhead.
 
 ## How it works
 
